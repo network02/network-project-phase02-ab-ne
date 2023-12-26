@@ -65,6 +65,7 @@ public class Worker extends Thread {
     private boolean quitCommandLoop = false;
 
     /**
+    /**
      * Create new worker with given client socket
      *
      * @param client   the socket for the current client
@@ -83,6 +84,7 @@ public class Worker extends Thread {
      */
     public void run() {
         debugOutput("Current working directory " + this.currDirectory);
+
         try {
             // Input from client
             controlIn = new BufferedReader(new InputStreamReader(controlSocket.getInputStream()));
@@ -106,6 +108,7 @@ public class Worker extends Thread {
                 controlIn.close();
                 controlOutWriter.close();
                 controlSocket.close();
+                debugOutput("Sockets closed and worker stopped");
                 debugOutput("Sockets closed and worker stopped");
             } catch (IOException e) {
                 e.printStackTrace();
@@ -305,7 +308,8 @@ public class Worker extends Thread {
      * @param username Username entered by the user
      */
     private void handleUser(String username) {
-        if (username.toLowerCase().equals(validUser)) {
+
+        if (username != null && username.toLowerCase().equals(validUser)) {
             sendMsgToClient("331 User name okay, need password");
             currentUserStatus = userStatus.ENTEREDUSERNAME;
         } else if (currentUserStatus == userStatus.LOGGEDIN) {
@@ -314,6 +318,8 @@ public class Worker extends Thread {
             sendMsgToClient("530 Not logged in");
         }
     }
+
+
 
     /**
      * Handler for PASS command. PASS receives the user password and checks if it's
@@ -324,7 +330,7 @@ public class Worker extends Thread {
 
     private void handlePass(String password) {
         // User has entered a valid username and password is correct
-        if (currentUserStatus == userStatus.ENTEREDUSERNAME && password.equals(validPassword)) {
+        if (currentUserStatus == userStatus.ENTEREDUSERNAME && validPassword.equals(password)) {
             currentUserStatus = userStatus.LOGGEDIN;
             sendMsgToClient("230-Welcome to HKUST");
             sendMsgToClient("230 User logged in successfully");

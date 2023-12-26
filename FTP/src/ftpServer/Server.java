@@ -24,6 +24,7 @@ public class Server {
         try {
             welcomeSocket = new ServerSocket(controlPort);
 
+
         } catch (IOException e) {
             System.out.println("Could not create server socket");
             System.exit(-1);

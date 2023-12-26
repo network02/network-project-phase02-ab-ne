@@ -308,7 +308,7 @@ public class Worker extends Thread {
      * @param username Username entered by the user
      */
     private void handleUser(String username) {
-
+        // handeled Null Value For username
         if (username != null && username.toLowerCase().equals(validUser)) {
             sendMsgToClient("331 User name okay, need password");
             currentUserStatus = userStatus.ENTEREDUSERNAME;
@@ -330,6 +330,7 @@ public class Worker extends Thread {
 
     private void handlePass(String password) {
         // User has entered a valid username and password is correct
+        // handeled Null Value For Pass
         if (currentUserStatus == userStatus.ENTEREDUSERNAME && validPassword.equals(password)) {
             currentUserStatus = userStatus.LOGGEDIN;
             sendMsgToClient("230-Welcome to HKUST");

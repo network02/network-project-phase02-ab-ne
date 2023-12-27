@@ -151,6 +151,10 @@ public class Worker extends Thread {
                 handleCwd(args);
                 break;
 
+            case "CDUP":
+                handleCdup();
+                break;
+
             case "LIST":
                 handleNlst(args);
                 break;
@@ -371,7 +375,13 @@ public class Worker extends Thread {
 
         // if argument is anything else (cd . does nothing)
         else if ((args != null) && (!args.equals("."))) {
-            filename = filename + fileSeparator + args;
+            // Check if the provided path is absolute
+            if (args.startsWith(fileSeparator)) {
+                filename = args;
+            } else {
+                // Otherwise, it's a relative path
+                filename = filename + fileSeparator + args;
+            }
         }
 
         // check if file exists, is directory and is not above root directory
@@ -384,6 +394,29 @@ public class Worker extends Thread {
             sendMsgToClient("550 Requested action not taken. File unavailable.");
         }
     }
+
+
+    private void handleCdup() {
+        String currentPath = currDirectory;
+
+        // If the current path is not already the root path
+        if (!currentPath.equals(root)) {
+            int lastSeparatorIndex = currentPath.lastIndexOf(fileSeparator);
+
+            // Ensure we have a valid index before proceeding
+            if (lastSeparatorIndex > 0) {
+                // Move to the parent directory
+                currDirectory = currentPath.substring(0, lastSeparatorIndex);
+                sendMsgToClient("200 Directory changed to " + currDirectory);
+                return;
+            }
+        }
+
+        // If the current path is already the root path, or an issue occurred
+        sendMsgToClient("550 Requested action not taken. Invalid parent directory.");
+    }
+
+
 
     /**
      * Handler for NLST (Named List) command. Lists the directory content in a short

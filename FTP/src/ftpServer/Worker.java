@@ -59,8 +59,8 @@ public class Worker extends Thread {
 
     // user properly logged in?
     private userStatus currentUserStatus = userStatus.NOTLOGGEDIN;
-    private String validUser = "comp4621";
-    private String validPassword = "network";
+    private String validUser = "ALI"; //comp4621
+    private String validPassword = "1"; //network
 
     private boolean quitCommandLoop = false;
 
@@ -77,6 +77,7 @@ public class Worker extends Thread {
         this.dataPort = dataPort;
         this.currDirectory = System.getProperty("user.dir") + "/test";
         this.root = System.getProperty("user.dir");
+
     }
 
     /**
@@ -92,12 +93,15 @@ public class Worker extends Thread {
             // Output to client, automatically flushed after each print
             controlOutWriter = new PrintWriter(controlSocket.getOutputStream(), true);
 
+
             // Greeting
             sendMsgToClient("220 Welcome to the COMP4621 FTP-Server");
 
             // Get new command from client
             while (!quitCommandLoop) {
-                executeCommand(controlIn.readLine());
+                String c=controlIn.readLine();
+                if (c!=null)
+                    executeCommand(c);
             }
 
         } catch (Exception e) {
@@ -125,6 +129,7 @@ public class Worker extends Thread {
      * @param c the raw input from the socket consisting of command and arguments
      */
     private void executeCommand(String c) {
+
         // split command and arguments
         int index = c.indexOf(' ');
         String command = ((index == -1) ? c.toUpperCase() : (c.substring(0, index)).toUpperCase());
@@ -334,7 +339,7 @@ public class Worker extends Thread {
         if (currentUserStatus == userStatus.ENTEREDUSERNAME && validPassword.equals(password)) {
             currentUserStatus = userStatus.LOGGEDIN;
             sendMsgToClient("230-Welcome to HKUST");
-            sendMsgToClient("230 User logged in successfully");
+           // sendMsgToClient("230 User logged in successfully");
         }
 
         // User is already logged in
@@ -400,7 +405,9 @@ public class Worker extends Thread {
 
 
                 for (int i = 0; i < dirContent.length; i++) {
-                    sendDataMsgToClient(dirContent[i]);
+
+                    sendDataMsgToClient(dirContent[i]); //in ghabl
+//                    sendMsgToClient(dirContent[i]);// in baad
                 }
 
                 sendMsgToClient("226 Transfer complete.");
@@ -454,10 +461,15 @@ public class Worker extends Thread {
      */
     private void handlePort(String args) {
         // Extract IP address and port number from arguments
-        String[] stringSplit = args.split(",");
-        String hostName = stringSplit[0] + "." + stringSplit[1] + "." + stringSplit[2] + "." + stringSplit[3];
 
-        int p = Integer.parseInt(stringSplit[4]) * 256 + Integer.parseInt(stringSplit[5]);
+//        String[] stringSplit = args.split(",");
+//        String hostName = stringSplit[0] + "." + stringSplit[1] + "." + stringSplit[2] + "." + stringSplit[3];
+
+        String[] stringSplit = args.split(" ");
+        String hostName = stringSplit[0];
+        int p = Integer.parseInt(stringSplit[1]);
+
+//        int p = Integer.parseInt(stringSplit[4]) * 256 + Integer.parseInt(stringSplit[5]);
 
         // Initiate data connection to client
         openDataConnectionActive(hostName, p);

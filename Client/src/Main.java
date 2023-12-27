@@ -8,10 +8,14 @@ public class Main {
 
     private static final String SERVER_ADDRESS = "localhost";
     private static final int SERVER_PORT = 1025;
+    private static final int DATA_PORT = 1026; // Port for data connection
+
     private static BufferedReader controlIn;
 
     private static PrintWriter controlOutWriter;
 
+    private static boolean useDataSocket = false;//j
+    private static Socket dataSocket;
 
     public static void main(String[] args) {
 
@@ -60,6 +64,26 @@ public class Main {
                 // دریافت و چاپ پاسخ از سرور
                 String response = controlIn.readLine();
                 System.out.println("Server: " + response);
+
+
+                // اگر دستور LIST اجرا شده باشد، پاسخ‌های بیشتر را بخوانید
+                if (command.equalsIgnoreCase("LIST")) {
+                    useDataSocket = true;
+//
+//                    while (true) {
+//                        String dataResponse = controlIn.readLine();
+//                        if (dataResponse == null || dataResponse.equals(".")) {
+//                            break;
+//                        }
+//                        System.out.println("Data Server: " + dataResponse);
+//                    }
+                }
+                else {
+                    useDataSocket = false;
+                }
+                if (useDataSocket) {
+                    receiveData();
+                }
             }
 
             // بستن اتصالات
@@ -67,6 +91,26 @@ public class Main {
             controlOutWriter.close();
             consoleInput.close();
             socket.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+    }
+    private static void receiveData() throws IOException {
+        dataSocket = new Socket(SERVER_ADDRESS, DATA_PORT);
+        try {
+            BufferedReader dataIn = new BufferedReader(new InputStreamReader(dataSocket.getInputStream()));
+
+            while (true) {
+                String dataResponse = dataIn.readLine();
+                if (dataResponse == null || dataResponse.equals(".")) {
+                    break;
+                }
+                System.out.println("Data Server: " + dataResponse);
+            }
+
+            // بستن اتصال دیتا
+            dataIn.close();
         } catch (IOException e) {
             e.printStackTrace();
         }

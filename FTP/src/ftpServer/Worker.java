@@ -95,7 +95,11 @@ public class Worker extends Thread {
 
 
             // Greeting
-            sendMsgToClient("220 Welcome to the COMP4621 FTP-Server");
+            sendMsgToClient("220 Welcome to the COMP4621 FTP-Serve \nUSER arg(ali) \nPASS arg (1) \nCWD arg (change path dir) \nCDUP (path to Root) \nPWD (current path dir) \n.");
+
+
+
+
 
             // Get new command from client
             while (!quitCommandLoop) {

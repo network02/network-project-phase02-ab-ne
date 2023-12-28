@@ -39,8 +39,14 @@ public class Main {
 
             try {
 
-                // دریافت خوشامد
-                System.out.println("Server: " + controlIn.readLine());
+                // دریافت خوشامد و راهنما
+                String serverResponse;
+                while (true){
+                    serverResponse = controlIn.readLine();
+                    if (serverResponse.equals(".") || serverResponse==null)
+                        break;
+                    System.out.println("Server: " + serverResponse);
+                }
 
             } catch (IOException e) {
                 e.printStackTrace();

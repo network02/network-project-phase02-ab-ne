@@ -59,7 +59,7 @@ public class Worker extends Thread {
 
     // user properly logged in?
     private userStatus currentUserStatus = userStatus.NOTLOGGEDIN;
-    private String validUser = "ALI"; //comp4621
+    private String validUser = "ali"; //comp4621
     private String validPassword = "1"; //network
 
     private boolean quitCommandLoop = false;
@@ -156,9 +156,6 @@ public class Worker extends Thread {
                 break;
 
             case "LIST":
-                handleNlst(args);
-                break;
-
             case "NLST":
                 handleNlst(args);
                 break;
@@ -609,21 +606,33 @@ public class Worker extends Thread {
      * @param args Directory name
      */
     private void handleMkd(String args) {
-        // Allow only alphanumeric characters
-        if (args != null && args.matches("^[a-zA-Z0-9]+$")) {
-            File dir = new File(currDirectory + fileSeparator + args);
-
-            if (!dir.mkdir()) {
-                sendMsgToClient("550 Failed to create new directory");
-                debugOutput("Failed to create new directory");
+        if (args != null) {
+            // Check if the path is absolute or relative
+            File dir;
+            if (args.startsWith(fileSeparator)) {
+                // Absolute path
+                dir = new File(args);
             } else {
-                sendMsgToClient("250 Directory successfully created");
+                // Relative path
+                dir = new File(currDirectory + fileSeparator + args);
+            }
+
+            // Allow only alphanumeric characters
+            if (args.matches("^[a-zA-Z0-9]+$")) {
+                if (!dir.mkdir()) {
+                    sendMsgToClient("550 Failed to create new directory");
+                    debugOutput("Failed to create new directory");
+                } else {
+                    sendMsgToClient("250 Directory successfully created");
+                }
+            } else {
+                sendMsgToClient("550 Invalid name");
             }
         } else {
-            sendMsgToClient("550 Invalid name");
+            sendMsgToClient("550 Invalid argument");
         }
-
     }
+
 
     /**
      * Handler for RMD (remove directory) command. Removes a directory.

@@ -12,6 +12,8 @@ import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Class for a FTP server worker thread.
@@ -63,6 +65,9 @@ public class Worker extends Thread {
     private String validPassword = "1"; //network
 
     private boolean quitCommandLoop = false;
+
+    private List<String> debugMessages = new ArrayList<>(); // tamam dastoorati ke server anjam dade
+
 
     /**
     /**
@@ -125,6 +130,13 @@ public class Worker extends Thread {
         }
 
     }
+
+    // return report of all command of server and client
+    public List<String> getDebugMessages() {
+        return debugMessages;
+    }
+
+
 
     /**
      * Main command dispatcher method. Separates the command from the arguments and
@@ -217,6 +229,10 @@ public class Worker extends Thread {
 
             case "STOR":
                 handleStor(args);
+                break;
+
+            case "REPORT":
+                handleReport();
                 break;
 
             default:
@@ -330,6 +346,36 @@ public class Worker extends Thread {
     }
 
 
+    private void handleReport(){
+        // چاپ تمام پیام‌ها
+        //sendMsgToClient("257 \"" + currDirectory + "\"");
+
+//        sendMsgToClient("125 Opening ASCII mode data connection for file list.");
+//
+//
+//        for (int i = 0; i < dirContent.length; i++) {
+//
+//            sendDataMsgToClient(dirContent[i]); //in ghabl
+////                    sendMsgToClient(dirContent[i]);// in baad
+//        }
+//
+//        sendMsgToClient("226 Transfer complete.");
+//        closeDataConnection();
+
+
+        sendMsgToClient("125 Opening ASCII mode data connection for file Report.");
+
+        List<String> messages = getDebugMessages();
+        for (String message : messages) {
+
+      //      sendDataMsgToClient(message); //in ghabl
+            sendMsgToClient(message);// in baad
+
+        }
+
+        sendMsgToClient("226 Transfer complete.");
+    }
+
 
     /**
      * Handler for PASS command. PASS receives the user password and checks if it's
@@ -426,6 +472,8 @@ public class Worker extends Thread {
      * @param args The directory to be listed
      */
     private void handleNlst(String args) {
+
+        openDataConnectionActive("localhost",20);
         if (dataConnection == null || dataConnection.isClosed()) {
             sendMsgToClient("425 No data connection was established");
         } else {
@@ -897,8 +945,12 @@ public class Worker extends Thread {
      */
     private void debugOutput(String msg) {
         if (debugMode) {
-            System.out.println("Thread " + this.getId() + ": " + msg);
+            String debugMessage = "Thread " + this.getId() + ": " + msg;
+            System.out.println(debugMessage);
+            // افزودن پیام به لیست
+            debugMessages.add(debugMessage);
         }
+
     }
 
 }

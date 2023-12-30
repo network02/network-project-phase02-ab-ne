@@ -1,5 +1,6 @@
 import java.io.*;
 
+import java.net.ServerSocket;
 import java.net.Socket;
 
 
@@ -7,14 +8,16 @@ import java.net.Socket;
 public class Main {
 
     private static final String SERVER_ADDRESS = "localhost";
-    private static final int SERVER_PORT = 1025;
-    private static final int DATA_PORT = 1026; // Port for data connection
+    private static final int SERVER_PORT = 21;
+    private static final int DATA_PORT = 20; // Port for data connection
 
+    private static ServerSocket welcomeSocket;
+    private static Socket controlSocket;
     private static BufferedReader controlIn;
 
     private static PrintWriter controlOutWriter;
 
-    private static boolean useDataSocket = false;//j
+    private static boolean useDataSocket = false;
     private static Socket dataSocket;
 
     public static void main(String[] args) {
@@ -22,17 +25,17 @@ public class Main {
 
         try {
             // اتصال به سرور
-            Socket socket = new Socket(SERVER_ADDRESS, SERVER_PORT);
+            controlSocket = new Socket(SERVER_ADDRESS, SERVER_PORT);
             System.out.println("Connected to the FTP server");
 
             // دریافت و ارسال داده‌ها از و به سرور
 
-            //DataOutputStream dataOutputStream = new DataOutputStream(socket.getOutputStream());
+            //DataOutputStream dataOutputStream = new DataOutputStream(controlSocket.getOutputStream());
             BufferedReader consoleInput = new BufferedReader(new InputStreamReader(System.in));
 
 
-            controlIn = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-            controlOutWriter = new PrintWriter(socket.getOutputStream(), true);
+            controlIn = new BufferedReader(new InputStreamReader(controlSocket.getInputStream()));
+            controlOutWriter = new PrintWriter(controlSocket.getOutputStream(), true);
 
 
 
@@ -68,42 +71,82 @@ public class Main {
                 }
 
                 // دریافت و چاپ پاسخ از سرور
+
+
+                if (command.equalsIgnoreCase("LIST")) {
+                    dataSocket=ListenToServer();
+//                    dataSocket = new Socket(SERVER_ADDRESS, SERVER_PORT);
+                    receiveData(dataSocket);
+                    printAllMsg(1,controlIn);
+
+                }
+
+
+
+
                 String response = controlIn.readLine();
                 System.out.println("Server: " + response);
 
-
-                // اگر دستور LIST اجرا شده باشد، پاسخ‌های بیشتر را بخوانید
-                if (command.equalsIgnoreCase("LIST")) {
-                    useDataSocket = true;
-//
-//                    while (true) {
-//                        String dataResponse = controlIn.readLine();
-//                        if (dataResponse == null || dataResponse.equals(".")) {
-//                            break;
-//                        }
-//                        System.out.println("Data Server: " + dataResponse);
-//                    }
-                }
-                else {
-                    useDataSocket = false;
-                }
-                if (useDataSocket) {
-                    receiveData();
-                }
             }
 
             // بستن اتصالات
             controlIn.close();
             controlOutWriter.close();
             consoleInput.close();
-            socket.close();
+            controlSocket.close();
         } catch (IOException e) {
             e.printStackTrace();
         }
 
     }
-    private static void receiveData() throws IOException {
-        dataSocket = new Socket(SERVER_ADDRESS, DATA_PORT);
+
+
+
+    private static void printAllMsg(int n,BufferedReader controlIn) throws IOException {
+
+        for (int i = 0; i < n; i++) {
+            String response = controlIn.readLine();
+            System.out.println("Server: " + response);
+        }
+    }
+
+    private static Socket ListenToServer(){
+
+        try {
+            welcomeSocket = new ServerSocket(DATA_PORT);
+
+
+        } catch (IOException e) {
+            System.out.println("Could not create server socket");
+            System.exit(-1);
+        }
+
+        System.out.println("FTP DATA connection started listening on port " + DATA_PORT);
+
+        while (true) {
+
+            try {
+
+                Socket DataConnectionSocket = welcomeSocket.accept();
+                System.out.println("New Data ConnectionSocket received. Data ConnectionSocket was created.");
+                if (DataConnectionSocket!=null)
+                        return DataConnectionSocket;
+
+
+            } catch (IOException e) {
+                System.out.println("Exception encountered on accept");
+                e.printStackTrace();
+            }
+
+
+
+        }
+
+
+
+    }
+    private static void receiveData(Socket dataSocket) throws IOException {
+
         try {
             BufferedReader dataIn = new BufferedReader(new InputStreamReader(dataSocket.getInputStream()));
 

@@ -90,7 +90,7 @@ public class Worker extends Thread {
                 controlOutWriter.close();
                 controlSocket.close();
                 debugOutput("Sockets closed and worker stopped");
-                debugOutput("Sockets closed and worker stopped");
+
             } catch (IOException e) {
                 e.printStackTrace();
                 debugOutput("Could not close sockets");
@@ -203,6 +203,7 @@ public class Worker extends Thread {
 
             default:
                 sendMsgToClient("501 Unknown command");
+                sendMsgToClient(".");
                 break;
 
         }
@@ -303,11 +304,14 @@ public class Worker extends Thread {
         // handeled Null Value For username
         if (username != null && username.toLowerCase().equals(validUser)) {
             sendMsgToClient("331 User name okay, need password");
+            sendMsgToClient(".");
             currentUserStatus = userStatus.ENTEREDUSERNAME;
         } else if (currentUserStatus == userStatus.LOGGEDIN) {
             sendMsgToClient("530 User already logged in");
+            sendMsgToClient(".");
         } else {
             sendMsgToClient("530 Not logged in");
+            sendMsgToClient(".");
         }
     }
 
@@ -339,6 +343,7 @@ public class Worker extends Thread {
         }
 
         sendMsgToClient("226 Transfer complete.");
+        sendMsgToClient(".");
     }
 
     /**
@@ -354,17 +359,20 @@ public class Worker extends Thread {
         if (currentUserStatus == userStatus.ENTEREDUSERNAME && validPassword.equals(password)) {
             currentUserStatus = userStatus.LOGGEDIN;
             sendMsgToClient("230-Welcome to HKUST");
+            sendMsgToClient(".");
             // sendMsgToClient("230 User logged in successfully");
         }
 
         // User is already logged in
         else if (currentUserStatus == userStatus.LOGGEDIN) {
             sendMsgToClient("530 User already logged in");
+            sendMsgToClient(".");
         }
 
         // Wrong password
         else {
             sendMsgToClient("530 Not logged in");
+            sendMsgToClient(".");
         }
     }
 
@@ -375,34 +383,41 @@ public class Worker extends Thread {
      */
     private void handleCwd(String args) {
         String filename = currDirectory;
-
-        // go one level up (cd ..)
-        if (args.equals("..")) {
-            int ind = filename.lastIndexOf(fileSeparator);
-            if (ind > 0) {
-                filename = filename.substring(0, ind);
-            }
+        if (args==null){
+            sendMsgToClient("400 .Path Is Null");
+            sendMsgToClient(".");
         }
+        else {
+            // go one level up (cd ..)
+            if (args.equals("..")) {
+                int ind = filename.lastIndexOf(fileSeparator);
+                if (ind > 0) {
+                    filename = filename.substring(0, ind);
+                }
+            }
 
-        // if argument is anything else (cd . does nothing)
-        else if ((args != null) && (!args.equals("."))) {
-            // Check if the provided path is absolute
-            if (args.startsWith(fileSeparator)) {
-                filename = args;
+            // if argument is anything else (cd . does nothing)
+            else if ((args != null) && (!args.equals("."))) {
+                // Check if the provided path is absolute
+                if (args.startsWith(fileSeparator)) {
+                    filename = args;
+                } else {
+                    // Otherwise, it's a relative path
+                    filename = filename + fileSeparator + args;
+                }
+            }
+
+            // check if file exists, is directory and is not above root directory
+            File f = new File(filename);
+
+            if (f.exists() && f.isDirectory() && (filename.length() >= root.length())) {
+                currDirectory = filename;
+                sendMsgToClient("250 The current directory has been changed to " + currDirectory);
+                sendMsgToClient(".");
             } else {
-                // Otherwise, it's a relative path
-                filename = filename + fileSeparator + args;
+                sendMsgToClient("550 Requested action not taken. File unavailable.");
+                sendMsgToClient(".");
             }
-        }
-
-        // check if file exists, is directory and is not above root directory
-        File f = new File(filename);
-
-        if (f.exists() && f.isDirectory() && (filename.length() >= root.length())) {
-            currDirectory = filename;
-            sendMsgToClient("250 The current directory has been changed to " + currDirectory);
-        } else {
-            sendMsgToClient("550 Requested action not taken. File unavailable.");
         }
     }
 
@@ -435,8 +450,10 @@ public class Worker extends Thread {
     private void handleNlst(String args) {
 
         openDataConnectionActive("localhost", 20);
+
         if (dataConnection == null || dataConnection.isClosed()) {
             sendMsgToClient("425 No data connection was established");
+            sendMsgToClient(".");
         } else {
 
 
@@ -446,37 +463,45 @@ public class Worker extends Thread {
                 List<FileDetails> fileInformations;
                 fileInformations = getFileInformation(filename);
                 for (FileDetails details : fileInformations) {
+                    sendDataMsgToClient(String.valueOf(details));
                     System.out.println(details);
                 }
             }
 
-            if (args==null) {
+            else if (args==null) {
                 List<FileDetails> fileInformations;
                 fileInformations = getFileInformation(currDirectory);
                 for (FileDetails details : fileInformations) {
+                    sendDataMsgToClient(String.valueOf(details));
                     System.out.println(details);
                 }
             }
-            String[] dirContent = nlstHelper(args);
 
-            if (dirContent == null) {
-                sendMsgToClient("550 File does not exist.");
-            } else {
-                sendMsgToClient("125 Opening ASCII mode data connection for file list.");
+            sendMsgToClient("226 Transfer complete.");
+            sendMsgToClient(".");
+            closeDataConnection();
 
 
-
-
-                for (int i = 0; i < dirContent.length; i++) {
-
-                    sendDataMsgToClient(dirContent[i]); //in ghabl
-//                    sendMsgToClient(dirContent[i]);// in baad
-                }
-
-                sendMsgToClient("226 Transfer complete.");
-                closeDataConnection();
-
-            }
+//            String[] dirContent = nlstHelper(args);
+//
+//            if (dirContent == null) {
+//                sendMsgToClient("550 File does not exist.");
+//            }
+//            else {
+//                sendMsgToClient("125 Opening ASCII mode data connection for file list.");
+//
+//
+//                for (int i = 0; i < dirContent.length; i++) {
+//
+//                    sendDataMsgToClient(dirContent[i]); //in ghabl
+////                    sendMsgToClient(dirContent[i]);// in baad
+//                }
+//
+//                sendMsgToClient("226 Transfer complete.");
+//                sendMsgToClient(".");
+//                closeDataConnection();
+//
+//            }
 
         }
 
@@ -574,7 +599,8 @@ public class Worker extends Thread {
      */
     private void handlePwd() {
         sendMsgToClient("257 \"" + currDirectory + "\"");
-        sendMsgToClient("226 Transfer complete.");
+//        sendMsgToClient("226 Transfer complete.");
+        sendMsgToClient(".");
     }
 
     /**
@@ -721,10 +747,13 @@ public class Worker extends Thread {
      * @param file The file to transfer to the user
      */
     private void handleRetr(String file) {
+
+        openDataConnectionActive("localhost", 20);
         File f = new File(currDirectory + fileSeparator + file);
 
         if (!f.exists()) {
             sendMsgToClient("550 File does not exist");
+            sendMsgToClient(".");
         } else {
 
             // Binary mode

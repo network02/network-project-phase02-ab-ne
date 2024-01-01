@@ -73,13 +73,24 @@ public class Main {
                 // دریافت و چاپ پاسخ از سرور
 
 
-                if (command.equalsIgnoreCase("LIST")) {
+                if (command.startsWith("LIST")||command.startsWith("list")) {
                     dataSocket=ListenToServer();
 //                    dataSocket = new Socket(SERVER_ADDRESS, SERVER_PORT);
                     receiveData(dataSocket);
                     //printAllMsg(1,controlIn);
                     printAllByWhile(controlIn);
+
                 }
+
+                else if (command.equalsIgnoreCase("RETR")) {
+                    dataSocket=ListenToServer();
+//                    dataSocket = new Socket(SERVER_ADDRESS, SERVER_PORT);
+                    receiveData(dataSocket);
+                    //printAllMsg(1,controlIn);
+                    printAllByWhile(controlIn);
+
+                }
+
                 else {
                     printAllByWhile(controlIn);
                 }
@@ -91,8 +102,10 @@ public class Main {
 
             }
 
+
             // بستن اتصالات
             controlIn.close();
+            dataSocket.close();
             controlOutWriter.close();
             consoleInput.close();
             controlSocket.close();
@@ -118,13 +131,16 @@ public class Main {
             // خواندن پیام از سرور
             String response = controlIn.readLine();
 
+            // اگر پیام "exit" باشد، حلقه خاتمه یافته و برنامه خاتمه می‌یابد
+            if (".".equalsIgnoreCase(response)) {
+//                continueReading = false;
+                break;
+            }
+
             // چاپ پیام در کنسول
             System.out.println("Server: " + response);
 
-            // اگر پیام "exit" باشد، حلقه خاتمه یافته و برنامه خاتمه می‌یابد
-            if ("226 Transfer complete.".equalsIgnoreCase(response.trim())) {
-                continueReading = false;
-            }
+
         }
 
     }
@@ -148,9 +164,10 @@ public class Main {
 
                 Socket DataConnectionSocket = welcomeSocket.accept();
                 System.out.println("New Data ConnectionSocket received. Data ConnectionSocket was created.");
-                if (DataConnectionSocket!=null)
-                        return DataConnectionSocket;
-
+                if (DataConnectionSocket!=null) {
+                    welcomeSocket.close();
+                    return DataConnectionSocket;
+                }
 
             } catch (IOException e) {
                 System.out.println("Exception encountered on accept");
@@ -179,6 +196,7 @@ public class Main {
 
             // بستن اتصال دیتا
             dataIn.close();
+
         } catch (IOException e) {
             e.printStackTrace();
         }

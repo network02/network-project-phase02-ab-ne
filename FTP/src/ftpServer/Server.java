@@ -11,8 +11,10 @@ import java.net.Socket;
  * @author Moritz Stueckler
  *
  */
+
 public class Server {
-    private int controlPort = 1025;
+    private int controlPort = 21;
+    private int dataPort = 20;
     private ServerSocket welcomeSocket;
     boolean serverRunning = true;
 
@@ -42,9 +44,11 @@ public class Server {
 
                 // Port for incoming dataConnection (for passive mode) is the controlPort +
                 // number of created threads + 1
-                int dataPort = controlPort + noOfThreads + 1;
+               // int dataPort = controlPort + noOfThreads + 1;
 
                 // Create new worker thread for new connection
+                //Worker w = new Worker(client, dataPort);
+
                 Worker w = new Worker(client, dataPort);
 
                 System.out.println("New connection received. Worker was created.");

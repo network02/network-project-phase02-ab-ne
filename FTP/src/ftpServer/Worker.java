@@ -1,17 +1,11 @@
 package ftpServer;
 
-import java.io.BufferedInputStream;
-import java.io.BufferedOutputStream;
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
-import java.io.FileReader;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.PrintWriter;
+import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.nio.file.*;
+import java.nio.file.attribute.BasicFileAttributes;
+import java.nio.file.attribute.PosixFileAttributes;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -19,58 +13,35 @@ import java.util.List;
  * Class for a FTP server worker thread.
  *
  * @author Moritz Stueckler (SID 20414726)
- *
  */
 public class Worker extends Thread {
     /**
      * Enable debugging output to console
      */
     private boolean debugMode = true;
-
-    /**
-     * Indicating the last set transfer type
-     */
-    private enum transferType {
-        ASCII, BINARY
-    }
-
-    /**
-     * Indicates the authentification status of a user
-     */
-    private enum userStatus {
-        NOTLOGGEDIN, ENTEREDUSERNAME, LOGGEDIN
-    }
-
     // Path information
     private String root;
     private String currDirectory;
     private String fileSeparator = "/";
-
     // control connection
     private Socket controlSocket;
     private PrintWriter controlOutWriter;
     private BufferedReader controlIn;
-
     // data Connection
     private ServerSocket dataSocket;
     private Socket dataConnection;
     private PrintWriter dataOutWriter;
-
     private int dataPort;
     private transferType transferMode = transferType.ASCII;
-
     // user properly logged in?
     private userStatus currentUserStatus = userStatus.NOTLOGGEDIN;
     private String validUser = "ali"; //comp4621
     private String validPassword = "1"; //network
-
     private boolean quitCommandLoop = false;
-
     private List<String> debugMessages = new ArrayList<>(); // tamam dastoorati ke server anjam dade
 
-
     /**
-    /**
+     * /**
      * Create new worker with given client socket
      *
      * @param client   the socket for the current client
@@ -103,13 +74,10 @@ public class Worker extends Thread {
             sendMsgToClient("220 Welcome to the COMP4621 FTP-Serve \nUSER arg(ali) \nPASS arg (1) \nCWD arg (change path dir) \nCDUP (path to Root) \nPWD (current path dir) \n.");
 
 
-
-
-
             // Get new command from client
             while (!quitCommandLoop) {
-                String c=controlIn.readLine();
-                if (c!=null)
+                String c = controlIn.readLine();
+                if (c != null)
                     executeCommand(c);
             }
 
@@ -135,8 +103,6 @@ public class Worker extends Thread {
     public List<String> getDebugMessages() {
         return debugMessages;
     }
-
-
 
     /**
      * Main command dispatcher method. Separates the command from the arguments and
@@ -345,8 +311,7 @@ public class Worker extends Thread {
         }
     }
 
-
-    private void handleReport(){
+    private void handleReport() {
         // چاپ تمام پیام‌ها
         //sendMsgToClient("257 \"" + currDirectory + "\"");
 
@@ -368,14 +333,13 @@ public class Worker extends Thread {
         List<String> messages = getDebugMessages();
         for (String message : messages) {
 
-      //      sendDataMsgToClient(message); //in ghabl
+            //      sendDataMsgToClient(message); //in ghabl
             sendMsgToClient(message);// in baad
 
         }
 
         sendMsgToClient("226 Transfer complete.");
     }
-
 
     /**
      * Handler for PASS command. PASS receives the user password and checks if it's
@@ -390,7 +354,7 @@ public class Worker extends Thread {
         if (currentUserStatus == userStatus.ENTEREDUSERNAME && validPassword.equals(password)) {
             currentUserStatus = userStatus.LOGGEDIN;
             sendMsgToClient("230-Welcome to HKUST");
-           // sendMsgToClient("230 User logged in successfully");
+            // sendMsgToClient("230 User logged in successfully");
         }
 
         // User is already logged in
@@ -442,7 +406,6 @@ public class Worker extends Thread {
         }
     }
 
-
     private void handleCdup() {
         String currentPath = currDirectory;
 
@@ -463,8 +426,6 @@ public class Worker extends Thread {
         sendMsgToClient("550 Requested action not taken. Invalid parent directory.");
     }
 
-
-
     /**
      * Handler for NLST (Named List) command. Lists the directory content in a short
      * format (names only)
@@ -473,17 +434,37 @@ public class Worker extends Thread {
      */
     private void handleNlst(String args) {
 
-        openDataConnectionActive("localhost",20);
+        openDataConnectionActive("localhost", 20);
         if (dataConnection == null || dataConnection.isClosed()) {
             sendMsgToClient("425 No data connection was established");
         } else {
 
+
+            String filename = currDirectory;
+            if (args != null) {
+                filename = filename + fileSeparator + args;
+                List<FileDetails> fileInformations;
+                fileInformations = getFileInformation(filename);
+                for (FileDetails details : fileInformations) {
+                    System.out.println(details);
+                }
+            }
+
+            if (args==null) {
+                List<FileDetails> fileInformations;
+                fileInformations = getFileInformation(currDirectory);
+                for (FileDetails details : fileInformations) {
+                    System.out.println(details);
+                }
+            }
             String[] dirContent = nlstHelper(args);
 
             if (dirContent == null) {
                 sendMsgToClient("550 File does not exist.");
             } else {
                 sendMsgToClient("125 Opening ASCII mode data connection for file list.");
+
+
 
 
                 for (int i = 0; i < dirContent.length; i++) {
@@ -507,8 +488,8 @@ public class Worker extends Thread {
      *
      * @param args The directory to list
      * @return an array containing names of files in a directory. If the given name
-     *         is that of a file, then return an array containing only one element
-     *         (this name). If the file or directory does not exist, return nul.
+     * is that of a file, then return an array containing only one element
+     * (this name). If the file or directory does not exist, return nul.
      */
     private String[] nlstHelper(String args) {
         // Construct the name of the directory to list.
@@ -593,6 +574,7 @@ public class Worker extends Thread {
      */
     private void handlePwd() {
         sendMsgToClient("257 \"" + currDirectory + "\"");
+        sendMsgToClient("226 Transfer complete.");
     }
 
     /**
@@ -685,7 +667,6 @@ public class Worker extends Thread {
         }
     }
 
-
     /**
      * Handler for RMD (remove directory) command. Removes a directory.
      *
@@ -744,9 +725,7 @@ public class Worker extends Thread {
 
         if (!f.exists()) {
             sendMsgToClient("550 File does not exist");
-        }
-
-        else {
+        } else {
 
             // Binary mode
             if (transferMode == transferType.BINARY) {
@@ -847,9 +826,7 @@ public class Worker extends Thread {
 
             if (f.exists()) {
                 sendMsgToClient("550 File already exists");
-            }
-
-            else {
+            } else {
 
                 // Binary mode
                 if (transferMode == transferType.BINARY) {
@@ -953,4 +930,78 @@ public class Worker extends Thread {
 
     }
 
+    /**
+     * Indicating the last set transfer type
+     */
+    private enum transferType {
+        ASCII, BINARY
+    }
+
+    /**
+     * Indicates the authentification status of a user
+     */
+    private enum userStatus {
+        NOTLOGGEDIN, ENTEREDUSERNAME, LOGGEDIN
+    }
+
+    public static List<FileDetails> getFileInformation(String directoryPath) {
+        List<FileDetails> fileDetailsList = new ArrayList<>();
+
+
+        try {
+            Path directory = Paths.get(directoryPath);
+            Files.walkFileTree(directory, new SimpleFileVisitor<Path>() {
+                @Override
+                public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
+                    fileDetailsList.add(new FileDetails(file));
+                    return FileVisitResult.CONTINUE;
+                }
+
+                @Override
+                public FileVisitResult visitFileFailed(Path file, IOException exc) throws IOException {
+                    // Handle the case where file visit failed (optional)
+                    return FileVisitResult.CONTINUE;
+                }
+            });
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+        return fileDetailsList;
+    }
+
+}
+
+class FileDetails {
+    private String name;
+    private long size;
+    private String permissions;
+    private String creationTime;
+
+    public FileDetails(Path file) throws IOException {
+        this.name = file.getFileName().toString();
+        this.size = Files.size(file);
+
+        // Check if the file system supports PosixFileAttributes
+        if (file.getFileSystem().supportedFileAttributeViews().contains("posix")) {
+            PosixFileAttributes posixAttributes = Files.readAttributes(file, PosixFileAttributes.class);
+            this.permissions = posixAttributes.permissions().toString();
+        } else {
+            // Handle non-POSIX file systems (e.g., Windows)
+            this.permissions = "N/A";
+        }
+
+        this.creationTime = Files.readAttributes(file, BasicFileAttributes.class).creationTime().toString();
+    }
+
+
+    @Override
+    public String toString() {
+        return "FileDetails{" +
+                "name='" + name + '\'' +
+                ", size=" + size +
+                ", permissions='" + permissions + '\'' +
+                ", creationTime='" + creationTime + '\'' +
+                '}';
+    }
 }

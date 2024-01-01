@@ -77,15 +77,17 @@ public class Main {
                     dataSocket=ListenToServer();
 //                    dataSocket = new Socket(SERVER_ADDRESS, SERVER_PORT);
                     receiveData(dataSocket);
-                    printAllMsg(1,controlIn);
-
+                    //printAllMsg(1,controlIn);
+                    printAllByWhile(controlIn);
+                }
+                else {
+                    printAllByWhile(controlIn);
                 }
 
 
-
-
-                String response = controlIn.readLine();
-                System.out.println("Server: " + response);
+//
+//                String response = controlIn.readLine();
+//                System.out.println("Server: " + response);
 
             }
 
@@ -108,6 +110,23 @@ public class Main {
             String response = controlIn.readLine();
             System.out.println("Server: " + response);
         }
+    }
+    private static void printAllByWhile(BufferedReader controlIn) throws IOException {
+        boolean continueReading = true;
+
+        while (continueReading) {
+            // خواندن پیام از سرور
+            String response = controlIn.readLine();
+
+            // چاپ پیام در کنسول
+            System.out.println("Server: " + response);
+
+            // اگر پیام "exit" باشد، حلقه خاتمه یافته و برنامه خاتمه می‌یابد
+            if ("226 Transfer complete.".equalsIgnoreCase(response.trim())) {
+                continueReading = false;
+            }
+        }
+
     }
 
     private static Socket ListenToServer(){

@@ -684,14 +684,18 @@ public class Worker extends Thread {
                 if (!dir.mkdir()) {
                     sendMsgToClient("550 Failed to create new directory");
                     debugOutput("Failed to create new directory");
+                    sendMsgToClient(".");
                 } else {
                     sendMsgToClient("250 Directory successfully created");
+                    sendMsgToClient(".");
                 }
             } else {
                 sendMsgToClient("550 Invalid name");
+                sendMsgToClient(".");
             }
         } else {
             sendMsgToClient("550 Invalid argument");
+            sendMsgToClient(".");
         }
     }
 
@@ -707,6 +711,7 @@ public class Worker extends Thread {
         if (dir != null && dir.matches("^[a-zA-Z0-9]+$")) {
             filename = filename + fileSeparator + dir;
 
+
             // check if file exists, is directory
             File d = new File(filename);
 
@@ -714,11 +719,14 @@ public class Worker extends Thread {
                 d.delete();
 
                 sendMsgToClient("250 Directory was successfully removed");
+                sendMsgToClient(".");
             } else {
                 sendMsgToClient("550 Requested action not taken. File unavailable.");
+                sendMsgToClient(".");
             }
         } else {
             sendMsgToClient("550 Invalid file name.");
+            sendMsgToClient(".");
         }
 
     }
@@ -1012,19 +1020,30 @@ public class Worker extends Thread {
     public static List<FileDetails> getFileInformation(String directoryPath) {
         List<FileDetails> fileDetailsList = new ArrayList<>();
 
-
         try {
             Path directory = Paths.get(directoryPath);
             Files.walkFileTree(directory, new SimpleFileVisitor<Path>() {
                 @Override
                 public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
-                    fileDetailsList.add(new FileDetails(file));
+                    if (directory.equals(file.getParent())) {
+                        // Only add files in the specified directory
+                        fileDetailsList.add(new FileDetails(file));
+                    }
                     return FileVisitResult.CONTINUE;
                 }
 
                 @Override
                 public FileVisitResult visitFileFailed(Path file, IOException exc) throws IOException {
                     // Handle the case where file visit failed (optional)
+                    return FileVisitResult.CONTINUE;
+                }
+
+                @Override
+                public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs) throws IOException {
+                    if (directory.equals(dir)) {
+                        // Only add information about the specified directory
+                        fileDetailsList.add(new FileDetails(dir));
+                    }
                     return FileVisitResult.CONTINUE;
                 }
             });

@@ -73,13 +73,23 @@ public class Main {
                 // دریافت و چاپ پاسخ از سرور
 
 
-                if (command.equalsIgnoreCase("LIST")) {
+                if (command.startsWith("LIST")||command.startsWith("list")) {
                     dataSocket=ListenToServer();
 //                    dataSocket = new Socket(SERVER_ADDRESS, SERVER_PORT);
                     receiveData(dataSocket);
                     //printAllMsg(1,controlIn);
                     printAllByWhile(controlIn);
+
                 }
+
+                else if (command.startsWith("RETR")||command.startsWith("retr")) {
+                    dataSocket=ListenToServer();
+//                    dataSocket = new Socket(SERVER_ADDRESS, SERVER_PORT);
+                    downloadData(dataSocket);
+                    printAllByWhile(controlIn);
+
+                }
+
                 else {
                     printAllByWhile(controlIn);
                 }
@@ -91,8 +101,13 @@ public class Main {
 
             }
 
+
             // بستن اتصالات
             controlIn.close();
+            if (dataSocket != null) {
+                dataSocket.close();
+            }
+//            dataSocket.close();
             controlOutWriter.close();
             consoleInput.close();
             controlSocket.close();
@@ -118,17 +133,19 @@ public class Main {
             // خواندن پیام از سرور
             String response = controlIn.readLine();
 
+            // اگر پیام "exit" باشد، حلقه خاتمه یافته و برنامه خاتمه می‌یابد
+            if (".".equalsIgnoreCase(response)) {
+//                continueReading = false;
+                break;
+            }
+
             // چاپ پیام در کنسول
             System.out.println("Server: " + response);
 
-            // اگر پیام "exit" باشد، حلقه خاتمه یافته و برنامه خاتمه می‌یابد
-            if ("226 Transfer complete.".equalsIgnoreCase(response.trim())) {
-                continueReading = false;
-            }
+
         }
 
     }
-
     private static Socket ListenToServer(){
 
         try {
@@ -148,9 +165,10 @@ public class Main {
 
                 Socket DataConnectionSocket = welcomeSocket.accept();
                 System.out.println("New Data ConnectionSocket received. Data ConnectionSocket was created.");
-                if (DataConnectionSocket!=null)
-                        return DataConnectionSocket;
-
+                if (DataConnectionSocket!=null) {
+                    welcomeSocket.close();
+                    return DataConnectionSocket;
+                }
 
             } catch (IOException e) {
                 System.out.println("Exception encountered on accept");
@@ -168,7 +186,7 @@ public class Main {
 
         try {
             BufferedReader dataIn = new BufferedReader(new InputStreamReader(dataSocket.getInputStream()));
-
+            System.out.println("-----------------------------------------------" );
             while (true) {
                 String dataResponse = dataIn.readLine();
                 if (dataResponse == null || dataResponse.equals(".")) {
@@ -176,12 +194,43 @@ public class Main {
                 }
                 System.out.println("Data Server: " + dataResponse);
             }
+            System.out.println("-----------------------------------------------" );
 
             // بستن اتصال دیتا
             dataIn.close();
+
         } catch (IOException e) {
             e.printStackTrace();
         }
     }
+    private static void downloadData(Socket dataSocket) throws IOException {
+
+        InputStream in = dataSocket.getInputStream();
+        BufferedInputStream bin = new BufferedInputStream(in);
+
+//        // خواندن پیام اولیه از سرور (به عنوان مثال، "150 Opening binary mode data connection...")
+//        byte[] initialMessageBuffer = new byte[1024];
+//        int bytesRead = bin.read(initialMessageBuffer);
+//        String initialMessage = new String(initialMessageBuffer, 0, bytesRead);
+//        System.out.println(initialMessage);
+
+        // نام فایل مورد نظر
+        String fileName = "receivedFile.txt";
+
+        // خواندن داده‌های فایل از سرور و ذخیره در فایل محلی
+        try (FileOutputStream fileOut = new FileOutputStream(fileName)) {
+            byte[] buffer = new byte[1024];
+            int bytesReadFromFile;
+
+            while ((bytesReadFromFile = bin.read(buffer)) != -1) {
+                fileOut.write(buffer, 0, bytesReadFromFile);
+            }
+            System.out.println("File received successfully.");
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+
 }
 

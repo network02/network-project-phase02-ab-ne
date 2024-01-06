@@ -8,12 +8,14 @@ import java.nio.file.attribute.BasicFileAttributes;
 import java.nio.file.attribute.PosixFileAttributes;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 /**
  * Class for a FTP server worker thread.
  *
  * @author Moritz Stueckler (SID 20414726)
  */
+
 public class Worker extends Thread {
     /**
      * Enable debugging output to console
@@ -37,6 +39,10 @@ public class Worker extends Thread {
     private userStatus currentUserStatus = userStatus.NOTLOGGEDIN;
     private String validUser = "ali"; //comp4621
     private String validPassword = "1"; //network
+
+    private String validAdminUser = "admin"; //comp4621
+    private String validAdminPassword = "1"; //network
+
     private boolean quitCommandLoop = false;
     private List<String> debugMessages = new ArrayList<>(); // tamam dastoorati ke server anjam dade
 
@@ -90,7 +96,7 @@ public class Worker extends Thread {
                 controlOutWriter.close();
                 controlSocket.close();
                 debugOutput("Sockets closed and worker stopped");
-                debugOutput("Sockets closed and worker stopped");
+
             } catch (IOException e) {
                 e.printStackTrace();
                 debugOutput("Could not close sockets");
@@ -203,6 +209,7 @@ public class Worker extends Thread {
 
             default:
                 sendMsgToClient("501 Unknown command");
+                sendMsgToClient(".");
                 break;
 
         }
@@ -303,42 +310,19 @@ public class Worker extends Thread {
         // handeled Null Value For username
         if (username != null && username.toLowerCase().equals(validUser)) {
             sendMsgToClient("331 User name okay, need password");
+            sendMsgToClient(".");
             currentUserStatus = userStatus.ENTEREDUSERNAME;
-        } else if (currentUserStatus == userStatus.LOGGEDIN) {
+        } else if (username != null && username.toLowerCase().equals(validAdminUser)) {
+            sendMsgToClient("331 Admin name okay, need password");
+            sendMsgToClient(".");
+            currentUserStatus = userStatus.ENTEREDADMINNAME;
+        } else if ((currentUserStatus == userStatus.LOGGEDIN)||(currentUserStatus == userStatus.ADMINLOGGENIN)) {
             sendMsgToClient("530 User already logged in");
+            sendMsgToClient(".");
         } else {
             sendMsgToClient("530 Not logged in");
+            sendMsgToClient(".");
         }
-    }
-
-    private void handleReport() {
-        // چاپ تمام پیام‌ها
-        //sendMsgToClient("257 \"" + currDirectory + "\"");
-
-//        sendMsgToClient("125 Opening ASCII mode data connection for file list.");
-//
-//
-//        for (int i = 0; i < dirContent.length; i++) {
-//
-//            sendDataMsgToClient(dirContent[i]); //in ghabl
-////                    sendMsgToClient(dirContent[i]);// in baad
-//        }
-//
-//        sendMsgToClient("226 Transfer complete.");
-//        closeDataConnection();
-
-
-        sendMsgToClient("125 Opening ASCII mode data connection for file Report.");
-
-        List<String> messages = getDebugMessages();
-        for (String message : messages) {
-
-            //      sendDataMsgToClient(message); //in ghabl
-            sendMsgToClient(message);// in baad
-
-        }
-
-        sendMsgToClient("226 Transfer complete.");
     }
 
     /**
@@ -354,17 +338,33 @@ public class Worker extends Thread {
         if (currentUserStatus == userStatus.ENTEREDUSERNAME && validPassword.equals(password)) {
             currentUserStatus = userStatus.LOGGEDIN;
             sendMsgToClient("230-Welcome to HKUST");
+            sendMsgToClient(".");
+            // sendMsgToClient("230 User logged in successfully");
+        }
+
+        else if (currentUserStatus == userStatus.ENTEREDADMINNAME && validAdminPassword.equals(password)) {
+            currentUserStatus = userStatus.ADMINLOGGENIN;
+            sendMsgToClient("230-Welcome to HKUST");
+            sendMsgToClient(".");
             // sendMsgToClient("230 User logged in successfully");
         }
 
         // User is already logged in
         else if (currentUserStatus == userStatus.LOGGEDIN) {
             sendMsgToClient("530 User already logged in");
+            sendMsgToClient(".");
+        }
+
+        // Admin is already logged in
+        else if (currentUserStatus == userStatus.ADMINLOGGENIN) {
+            sendMsgToClient("530 Admin already logged in");
+            sendMsgToClient(".");
         }
 
         // Wrong password
         else {
             sendMsgToClient("530 Not logged in");
+            sendMsgToClient(".");
         }
     }
 
@@ -375,34 +375,41 @@ public class Worker extends Thread {
      */
     private void handleCwd(String args) {
         String filename = currDirectory;
-
-        // go one level up (cd ..)
-        if (args.equals("..")) {
-            int ind = filename.lastIndexOf(fileSeparator);
-            if (ind > 0) {
-                filename = filename.substring(0, ind);
-            }
+        if (args==null){
+            sendMsgToClient("400 .Path Is Null");
+            sendMsgToClient(".");
         }
+        else {
+            // go one level up (cd ..)
+            if (args.equals("..")) {
+                int ind = filename.lastIndexOf(fileSeparator);
+                if (ind > 0) {
+                    filename = filename.substring(0, ind);
+                }
+            }
 
-        // if argument is anything else (cd . does nothing)
-        else if ((args != null) && (!args.equals("."))) {
-            // Check if the provided path is absolute
-            if (args.startsWith(fileSeparator)) {
-                filename = args;
+            // if argument is anything else (cd . does nothing)
+            else if ((args != null) && (!args.equals("."))) {
+                // Check if the provided path is absolute
+                if (args.startsWith(fileSeparator)) {
+                    filename = args;
+                } else {
+                    // Otherwise, it's a relative path
+                    filename = filename + fileSeparator + args;
+                }
+            }
+
+            // check if file exists, is directory and is not above root directory
+            File f = new File(filename);
+
+            if (f.exists() && f.isDirectory() && (filename.length() >= root.length())) {
+                currDirectory = filename;
+                sendMsgToClient("250 The current directory has been changed to " + currDirectory);
+                sendMsgToClient(".");
             } else {
-                // Otherwise, it's a relative path
-                filename = filename + fileSeparator + args;
+                sendMsgToClient("550 Requested action not taken. File unavailable.");
+                sendMsgToClient(".");
             }
-        }
-
-        // check if file exists, is directory and is not above root directory
-        File f = new File(filename);
-
-        if (f.exists() && f.isDirectory() && (filename.length() >= root.length())) {
-            currDirectory = filename;
-            sendMsgToClient("250 The current directory has been changed to " + currDirectory);
-        } else {
-            sendMsgToClient("550 Requested action not taken. File unavailable.");
         }
     }
 
@@ -435,48 +442,68 @@ public class Worker extends Thread {
     private void handleNlst(String args) {
 
         openDataConnectionActive("localhost", 20);
+
         if (dataConnection == null || dataConnection.isClosed()) {
             sendMsgToClient("425 No data connection was established");
+            sendMsgToClient(".");
         } else {
 
 
             String filename = currDirectory;
-            if (args != null) {
-                filename = filename + fileSeparator + args;
-                List<FileDetails> fileInformations;
-                fileInformations = getFileInformation(filename);
-                for (FileDetails details : fileInformations) {
-                    System.out.println(details);
-                }
+
+
+            if ( (filename.equals("C:\\Users\\k1\\Desktop\\Phase 2 CN\\network-project-phase02-ab-ne\\FTP/test") && (Objects.equals(args, "Private")) && (currentUserStatus != userStatus.ADMINLOGGENIN) ) || (filename.equals("C:\\Users\\k1\\Desktop\\Phase 2 CN\\network-project-phase02-ab-ne\\FTP/test")&& (args==null) && (currentUserStatus != userStatus.ADMINLOGGENIN))){
+                sendMsgToClient("400 Admin Not Logged in");
+                sendMsgToClient(".");
+                closeDataConnection();
             }
-
-            if (args==null) {
-                List<FileDetails> fileInformations;
-                fileInformations = getFileInformation(currDirectory);
-                for (FileDetails details : fileInformations) {
-                    System.out.println(details);
+            else {
+                if (args != null) {
+                    filename = filename + fileSeparator + args;
+                    List<FileDetails> fileInformations;
+                    fileInformations = getFileInformation(filename);
+                    for (FileDetails details : fileInformations) {
+                        sendDataMsgToClient(String.valueOf(details));
+                        // System.out.println(details);
+                    }
                 }
-            }
-            String[] dirContent = nlstHelper(args);
 
-            if (dirContent == null) {
-                sendMsgToClient("550 File does not exist.");
-            } else {
-                sendMsgToClient("125 Opening ASCII mode data connection for file list.");
-
-
-
-
-                for (int i = 0; i < dirContent.length; i++) {
-
-                    sendDataMsgToClient(dirContent[i]); //in ghabl
-//                    sendMsgToClient(dirContent[i]);// in baad
+                else if (args==null) {
+                    List<FileDetails> fileInformations;
+                    fileInformations = getFileInformation(currDirectory);
+                    for (FileDetails details : fileInformations) {
+                        sendDataMsgToClient(String.valueOf(details));
+                        // System.out.println(details);
+                    }
                 }
 
                 sendMsgToClient("226 Transfer complete.");
+                sendMsgToClient(".");
                 closeDataConnection();
-
             }
+
+
+
+//            String[] dirContent = nlstHelper(args);
+//
+//            if (dirContent == null) {
+//                sendMsgToClient("550 File does not exist.");
+//            }
+//            else {
+//                sendMsgToClient("125 Opening ASCII mode data connection for file list.");
+//
+//
+//                for (int i = 0; i < dirContent.length; i++) {
+//
+//                    sendDataMsgToClient(dirContent[i]); //in ghabl
+////                    sendMsgToClient(dirContent[i]);// in baad
+//                }
+//
+//                sendMsgToClient("226 Transfer complete.");
+//                sendMsgToClient(".");
+//                closeDataConnection();
+//
+//            }
 
         }
 
@@ -574,7 +601,8 @@ public class Worker extends Thread {
      */
     private void handlePwd() {
         sendMsgToClient("257 \"" + currDirectory + "\"");
-        sendMsgToClient("226 Transfer complete.");
+//        sendMsgToClient("226 Transfer complete.");
+        sendMsgToClient(".");
     }
 
     /**
@@ -656,14 +684,18 @@ public class Worker extends Thread {
                 if (!dir.mkdir()) {
                     sendMsgToClient("550 Failed to create new directory");
                     debugOutput("Failed to create new directory");
+                    sendMsgToClient(".");
                 } else {
                     sendMsgToClient("250 Directory successfully created");
+                    sendMsgToClient(".");
                 }
             } else {
                 sendMsgToClient("550 Invalid name");
+                sendMsgToClient(".");
             }
         } else {
             sendMsgToClient("550 Invalid argument");
+            sendMsgToClient(".");
         }
     }
 
@@ -679,6 +711,7 @@ public class Worker extends Thread {
         if (dir != null && dir.matches("^[a-zA-Z0-9]+$")) {
             filename = filename + fileSeparator + dir;
 
+
             // check if file exists, is directory
             File d = new File(filename);
 
@@ -686,11 +719,14 @@ public class Worker extends Thread {
                 d.delete();
 
                 sendMsgToClient("250 Directory was successfully removed");
+                sendMsgToClient(".");
             } else {
                 sendMsgToClient("550 Requested action not taken. File unavailable.");
+                sendMsgToClient(".");
             }
         } else {
             sendMsgToClient("550 Invalid file name.");
+            sendMsgToClient(".");
         }
 
     }
@@ -721,10 +757,13 @@ public class Worker extends Thread {
      * @param file The file to transfer to the user
      */
     private void handleRetr(String file) {
+
+        openDataConnectionActive("localhost", 20);
         File f = new File(currDirectory + fileSeparator + file);
 
         if (!f.exists()) {
             sendMsgToClient("550 File does not exist");
+            sendMsgToClient(".");
         } else {
 
             // Binary mode
@@ -768,6 +807,7 @@ public class Worker extends Thread {
                 debugOutput("Completed file transmission of " + f.getName());
 
                 sendMsgToClient("226 File transfer successful. Closing data connection.");
+                sendMsgToClient(".");
 
             }
 
@@ -805,6 +845,7 @@ public class Worker extends Thread {
                     e.printStackTrace();
                 }
                 sendMsgToClient("226 File transfer successful. Closing data connection.");
+                sendMsgToClient(".");
             }
 
         }
@@ -918,8 +959,40 @@ public class Worker extends Thread {
      * Debug output to the console. Also includes the Thread ID for better
      * readability.
      *
-     * @param msg Debug message
      */
+
+    private void handleReport() {
+        if (currentUserStatus ==userStatus.ADMINLOGGENIN){
+
+            sendMsgToClient("125 Opening ASCII mode data connection for file Report.");
+            sendMsgToClient("-------------------------------------------------------");
+
+            for (String message : debugMessages) {
+
+                //      sendDataMsgToClient(message); //in ghabl
+                sendMsgToClient(message);// in baad
+
+            }
+
+            sendMsgToClient("-------------------------------------------------------");
+            sendMsgToClient("226 Transfer complete.");
+            sendMsgToClient(".");
+        }
+        else {
+
+
+            sendMsgToClient("400 Admin Not Logged in");
+            sendMsgToClient(".");
+        }
+
+
+
+
+
+
+    }
+
+
     private void debugOutput(String msg) {
         if (debugMode) {
             String debugMessage = "Thread " + this.getId() + ": " + msg;
@@ -941,25 +1014,36 @@ public class Worker extends Thread {
      * Indicates the authentification status of a user
      */
     private enum userStatus {
-        NOTLOGGEDIN, ENTEREDUSERNAME, LOGGEDIN
+        NOTLOGGEDIN, ENTEREDUSERNAME, LOGGEDIN , ADMINLOGGENIN,ENTEREDADMINNAME
     }
 
     public static List<FileDetails> getFileInformation(String directoryPath) {
         List<FileDetails> fileDetailsList = new ArrayList<>();
-
 
         try {
             Path directory = Paths.get(directoryPath);
             Files.walkFileTree(directory, new SimpleFileVisitor<Path>() {
                 @Override
                 public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
-                    fileDetailsList.add(new FileDetails(file));
+                    if (directory.equals(file.getParent())) {
+                        // Only add files in the specified directory
+                        fileDetailsList.add(new FileDetails(file));
+                    }
                     return FileVisitResult.CONTINUE;
                 }
 
                 @Override
                 public FileVisitResult visitFileFailed(Path file, IOException exc) throws IOException {
                     // Handle the case where file visit failed (optional)
+                    return FileVisitResult.CONTINUE;
+                }
+
+                @Override
+                public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs) throws IOException {
+                    if (directory.equals(dir)) {
+                        // Only add information about the specified directory
+                        fileDetailsList.add(new FileDetails(dir));
+                    }
                     return FileVisitResult.CONTINUE;
                 }
             });
@@ -969,6 +1053,16 @@ public class Worker extends Thread {
 
         return fileDetailsList;
     }
+
+    private boolean LoggInCheckUser(){
+        if (currentUserStatus==userStatus.LOGGEDIN) return true;
+        else return false;
+    }
+    private boolean LoggInCheckAdmin(){
+        if (currentUserStatus==userStatus.ADMINLOGGENIN) return true;
+        else return false;
+    }
+
 
 }
 

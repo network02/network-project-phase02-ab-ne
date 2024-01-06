@@ -8,12 +8,14 @@ import java.nio.file.attribute.BasicFileAttributes;
 import java.nio.file.attribute.PosixFileAttributes;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 /**
  * Class for a FTP server worker thread.
  *
  * @author Moritz Stueckler (SID 20414726)
  */
+
 public class Worker extends Thread {
     /**
      * Enable debugging output to console
@@ -37,6 +39,10 @@ public class Worker extends Thread {
     private userStatus currentUserStatus = userStatus.NOTLOGGEDIN;
     private String validUser = "ali"; //comp4621
     private String validPassword = "1"; //network
+
+    private String validAdminUser = "admin"; //comp4621
+    private String validAdminPassword = "1"; //network
+
     private boolean quitCommandLoop = false;
     private List<String> debugMessages = new ArrayList<>(); // tamam dastoorati ke server anjam dade
 
@@ -306,44 +312,17 @@ public class Worker extends Thread {
             sendMsgToClient("331 User name okay, need password");
             sendMsgToClient(".");
             currentUserStatus = userStatus.ENTEREDUSERNAME;
-        } else if (currentUserStatus == userStatus.LOGGEDIN) {
+        } else if (username != null && username.toLowerCase().equals(validAdminUser)) {
+            sendMsgToClient("331 Admin name okay, need password");
+            sendMsgToClient(".");
+            currentUserStatus = userStatus.ENTEREDADMINNAME;
+        } else if ((currentUserStatus == userStatus.LOGGEDIN)||(currentUserStatus == userStatus.ADMINLOGGENIN)) {
             sendMsgToClient("530 User already logged in");
             sendMsgToClient(".");
         } else {
             sendMsgToClient("530 Not logged in");
             sendMsgToClient(".");
         }
-    }
-
-    private void handleReport() {
-        // چاپ تمام پیام‌ها
-        //sendMsgToClient("257 \"" + currDirectory + "\"");
-
-//        sendMsgToClient("125 Opening ASCII mode data connection for file list.");
-//
-//
-//        for (int i = 0; i < dirContent.length; i++) {
-//
-//            sendDataMsgToClient(dirContent[i]); //in ghabl
-////                    sendMsgToClient(dirContent[i]);// in baad
-//        }
-//
-//        sendMsgToClient("226 Transfer complete.");
-//        closeDataConnection();
-
-
-        sendMsgToClient("125 Opening ASCII mode data connection for file Report.");
-
-        List<String> messages = getDebugMessages();
-        for (String message : messages) {
-
-            //      sendDataMsgToClient(message); //in ghabl
-            sendMsgToClient(message);// in baad
-
-        }
-
-        sendMsgToClient("226 Transfer complete.");
-        sendMsgToClient(".");
     }
 
     /**
@@ -363,9 +342,22 @@ public class Worker extends Thread {
             // sendMsgToClient("230 User logged in successfully");
         }
 
+        else if (currentUserStatus == userStatus.ENTEREDADMINNAME && validAdminPassword.equals(password)) {
+            currentUserStatus = userStatus.ADMINLOGGENIN;
+            sendMsgToClient("230-Welcome to HKUST");
+            sendMsgToClient(".");
+            // sendMsgToClient("230 User logged in successfully");
+        }
+
         // User is already logged in
         else if (currentUserStatus == userStatus.LOGGEDIN) {
             sendMsgToClient("530 User already logged in");
+            sendMsgToClient(".");
+        }
+
+        // Admin is already logged in
+        else if (currentUserStatus == userStatus.ADMINLOGGENIN) {
+            sendMsgToClient("530 Admin already logged in");
             sendMsgToClient(".");
         }
 
@@ -458,28 +450,38 @@ public class Worker extends Thread {
 
 
             String filename = currDirectory;
-            if (args != null) {
-                filename = filename + fileSeparator + args;
-                List<FileDetails> fileInformations;
-                fileInformations = getFileInformation(filename);
-                for (FileDetails details : fileInformations) {
-                    sendDataMsgToClient(String.valueOf(details));
-                    System.out.println(details);
+
+
+            if ( (filename.equals("C:\\Users\\k1\\Desktop\\Phase 2 CN\\network-project-phase02-ab-ne\\FTP/test") && (Objects.equals(args, "Private")) && (currentUserStatus != userStatus.ADMINLOGGENIN) ) || (filename.equals("C:\\Users\\k1\\Desktop\\Phase 2 CN\\network-project-phase02-ab-ne\\FTP/test")&& (args==null) && (currentUserStatus != userStatus.ADMINLOGGENIN))){
+                sendMsgToClient("400 Admin Not Logged in");
+                sendMsgToClient(".");
+                closeDataConnection();
+            }
+            else {
+                if (args != null) {
+                    filename = filename + fileSeparator + args;
+                    List<FileDetails> fileInformations;
+                    fileInformations = getFileInformation(filename);
+                    for (FileDetails details : fileInformations) {
+                        sendDataMsgToClient(String.valueOf(details));
+                        // System.out.println(details);
+                    }
                 }
+
+                else if (args==null) {
+                    List<FileDetails> fileInformations;
+                    fileInformations = getFileInformation(currDirectory);
+                    for (FileDetails details : fileInformations) {
+                        sendDataMsgToClient(String.valueOf(details));
+                        // System.out.println(details);
+                    }
+                }
+
+                sendMsgToClient("226 Transfer complete.");
+                sendMsgToClient(".");
+                closeDataConnection();
             }
 
-            else if (args==null) {
-                List<FileDetails> fileInformations;
-                fileInformations = getFileInformation(currDirectory);
-                for (FileDetails details : fileInformations) {
-                    sendDataMsgToClient(String.valueOf(details));
-                    System.out.println(details);
-                }
-            }
-
-            sendMsgToClient("226 Transfer complete.");
-            sendMsgToClient(".");
-            closeDataConnection();
 
 
 //            String[] dirContent = nlstHelper(args);
@@ -797,6 +799,7 @@ public class Worker extends Thread {
                 debugOutput("Completed file transmission of " + f.getName());
 
                 sendMsgToClient("226 File transfer successful. Closing data connection.");
+                sendMsgToClient(".");
 
             }
 
@@ -834,6 +837,7 @@ public class Worker extends Thread {
                     e.printStackTrace();
                 }
                 sendMsgToClient("226 File transfer successful. Closing data connection.");
+                sendMsgToClient(".");
             }
 
         }
@@ -947,8 +951,40 @@ public class Worker extends Thread {
      * Debug output to the console. Also includes the Thread ID for better
      * readability.
      *
-     * @param msg Debug message
      */
+
+    private void handleReport() {
+        if (currentUserStatus ==userStatus.ADMINLOGGENIN){
+
+            sendMsgToClient("125 Opening ASCII mode data connection for file Report.");
+            sendMsgToClient("-------------------------------------------------------");
+
+            for (String message : debugMessages) {
+
+                //      sendDataMsgToClient(message); //in ghabl
+                sendMsgToClient(message);// in baad
+
+            }
+
+            sendMsgToClient("-------------------------------------------------------");
+            sendMsgToClient("226 Transfer complete.");
+            sendMsgToClient(".");
+        }
+        else {
+
+
+            sendMsgToClient("400 Admin Not Logged in");
+            sendMsgToClient(".");
+        }
+
+
+
+
+
+
+    }
+
+
     private void debugOutput(String msg) {
         if (debugMode) {
             String debugMessage = "Thread " + this.getId() + ": " + msg;
@@ -970,7 +1006,7 @@ public class Worker extends Thread {
      * Indicates the authentification status of a user
      */
     private enum userStatus {
-        NOTLOGGEDIN, ENTEREDUSERNAME, LOGGEDIN
+        NOTLOGGEDIN, ENTEREDUSERNAME, LOGGEDIN , ADMINLOGGENIN,ENTEREDADMINNAME
     }
 
     public static List<FileDetails> getFileInformation(String directoryPath) {
@@ -998,6 +1034,16 @@ public class Worker extends Thread {
 
         return fileDetailsList;
     }
+
+    private boolean LoggInCheckUser(){
+        if (currentUserStatus==userStatus.LOGGEDIN) return true;
+        else return false;
+    }
+    private boolean LoggInCheckAdmin(){
+        if (currentUserStatus==userStatus.ADMINLOGGENIN) return true;
+        else return false;
+    }
+
 
 }
 

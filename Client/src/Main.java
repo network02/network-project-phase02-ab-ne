@@ -82,11 +82,10 @@ public class Main {
 
                 }
 
-                else if (command.equalsIgnoreCase("RETR")) {
+                else if (command.startsWith("RETR")||command.startsWith("retr")) {
                     dataSocket=ListenToServer();
 //                    dataSocket = new Socket(SERVER_ADDRESS, SERVER_PORT);
-                    receiveData(dataSocket);
-                    //printAllMsg(1,controlIn);
+                    downloadData(dataSocket);
                     printAllByWhile(controlIn);
 
                 }
@@ -105,7 +104,10 @@ public class Main {
 
             // بستن اتصالات
             controlIn.close();
-            dataSocket.close();
+            if (dataSocket != null) {
+                dataSocket.close();
+            }
+//            dataSocket.close();
             controlOutWriter.close();
             consoleInput.close();
             controlSocket.close();
@@ -144,7 +146,6 @@ public class Main {
         }
 
     }
-
     private static Socket ListenToServer(){
 
         try {
@@ -185,7 +186,7 @@ public class Main {
 
         try {
             BufferedReader dataIn = new BufferedReader(new InputStreamReader(dataSocket.getInputStream()));
-
+            System.out.println("-----------------------------------------------" );
             while (true) {
                 String dataResponse = dataIn.readLine();
                 if (dataResponse == null || dataResponse.equals(".")) {
@@ -193,6 +194,7 @@ public class Main {
                 }
                 System.out.println("Data Server: " + dataResponse);
             }
+            System.out.println("-----------------------------------------------" );
 
             // بستن اتصال دیتا
             dataIn.close();
@@ -201,5 +203,34 @@ public class Main {
             e.printStackTrace();
         }
     }
+    private static void downloadData(Socket dataSocket) throws IOException {
+
+        InputStream in = dataSocket.getInputStream();
+        BufferedInputStream bin = new BufferedInputStream(in);
+
+//        // خواندن پیام اولیه از سرور (به عنوان مثال، "150 Opening binary mode data connection...")
+//        byte[] initialMessageBuffer = new byte[1024];
+//        int bytesRead = bin.read(initialMessageBuffer);
+//        String initialMessage = new String(initialMessageBuffer, 0, bytesRead);
+//        System.out.println(initialMessage);
+
+        // نام فایل مورد نظر
+        String fileName = "receivedFile.txt";
+
+        // خواندن داده‌های فایل از سرور و ذخیره در فایل محلی
+        try (FileOutputStream fileOut = new FileOutputStream(fileName)) {
+            byte[] buffer = new byte[1024];
+            int bytesReadFromFile;
+
+            while ((bytesReadFromFile = bin.read(buffer)) != -1) {
+                fileOut.write(buffer, 0, bytesReadFromFile);
+            }
+            System.out.println("File received successfully.");
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+
 }
 

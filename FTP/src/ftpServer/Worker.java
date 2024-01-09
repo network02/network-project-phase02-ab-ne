@@ -116,7 +116,7 @@ public class Worker extends Thread {
      *
      * @param c the raw input from the socket consisting of command and arguments
      */
-    private void executeCommand(String c) {
+    private void executeCommand(String c) throws IOException {
 
         // split command and arguments
         int index = c.indexOf(' ');
@@ -859,101 +859,43 @@ public class Worker extends Thread {
      *
      * @param file The file that the user wants to store on the server
      */
-    private void handleStor(String file) {
-        if (file == null) {
-            sendMsgToClient("501 No filename given");
-        } else {
-            File f = new File(currDirectory + fileSeparator + file);
+    private void handleStor(String file) throws IOException {
+        System.out.println("bbb");
 
-            if (f.exists()) {
-                sendMsgToClient("550 File already exists");
-            } else {
+        openDataConnectionActive("localhost", 20);
 
-                // Binary mode
-                if (transferMode == transferType.BINARY) {
-                    BufferedOutputStream fout = null;
-                    BufferedInputStream fin = null;
+        System.out.println("aa");
 
-                    sendMsgToClient("150 Opening binary mode data connection for requested file " + f.getName());
+        InputStream in = dataConnection.getInputStream();
+        BufferedInputStream bin = new BufferedInputStream(in);
 
-                    try {
-                        // create streams
-                        fout = new BufferedOutputStream(new FileOutputStream(f));
-                        fin = new BufferedInputStream(dataConnection.getInputStream());
-                    } catch (Exception e) {
-                        debugOutput("Could not create file streams");
-                    }
 
-                    debugOutput("Start receiving file " + f.getName());
+        // نام فایل مورد نظر
+        String fileName = file;
 
-                    // write file with buffer
-                    byte[] buf = new byte[1024];
-                    int l = 0;
-                    try {
-                        while ((l = fin.read(buf, 0, 1024)) != -1) {
-                            fout.write(buf, 0, l);
-                        }
-                    } catch (IOException e) {
-                        debugOutput("Could not read from or write to file streams");
-                        e.printStackTrace();
-                    }
+        // خواندن داده‌های فایل از سرور و ذخیره در فایل محلی
+        try (FileOutputStream fileOut = new FileOutputStream(fileName)) {
+            byte[] buffer = new byte[1024];
+            int bytesReadFromFile;
 
-                    // close streams
-                    try {
-                        fin.close();
-                        fout.close();
-                    } catch (IOException e) {
-                        debugOutput("Could not close file streams");
-                        e.printStackTrace();
-                    }
-
-                    debugOutput("Completed receiving file " + f.getName());
-
-                    sendMsgToClient("226 File transfer successful. Closing data connection.");
-
-                }
-
-                // ASCII mode
-                else {
-                    sendMsgToClient("150 Opening ASCII mode data connection for requested file " + f.getName());
-
-                    BufferedReader rin = null;
-                    PrintWriter rout = null;
-
-                    try {
-                        rin = new BufferedReader(new InputStreamReader(dataConnection.getInputStream()));
-                        rout = new PrintWriter(new FileOutputStream(f), true);
-
-                    } catch (IOException e) {
-                        debugOutput("Could not create file streams");
-                    }
-
-                    String s;
-
-                    try {
-                        while ((s = rin.readLine()) != null) {
-                            rout.println(s);
-                        }
-                    } catch (IOException e) {
-                        debugOutput("Could not read from or write to file streams");
-                        e.printStackTrace();
-                    }
-
-                    try {
-                        rout.close();
-                        rin.close();
-                    } catch (IOException e) {
-                        debugOutput("Could not close file streams");
-                        e.printStackTrace();
-                    }
-                    sendMsgToClient("226 File transfer successful. Closing data connection.");
-                }
-
+            while ((bytesReadFromFile = bin.read(buffer)) != -1) {
+                fileOut.write(buffer, 0, bytesReadFromFile);
             }
-            closeDataConnection();
+            sendMsgToClient("File received successfully.");
+            sendMsgToClient(".");
+        } catch (IOException e) {
+            e.printStackTrace();
         }
 
+        if (dataConnection != null) {
+            dataConnection.close();
+        }
+
+
     }
+
+
+
 
     /**
      * Debug output to the console. Also includes the Thread ID for better

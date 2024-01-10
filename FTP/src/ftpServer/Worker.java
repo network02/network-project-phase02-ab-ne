@@ -10,11 +10,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
-/**
- * Class for a FTP server worker thread.
- *
- * @author Moritz Stueckler (SID 20414726)
- */
 
 public class Worker extends Thread {
     /**
@@ -40,8 +35,8 @@ public class Worker extends Thread {
     private String validUser = "ali"; //comp4621
     private String validPassword = "1"; //network
 
-    private String validAdminUser = "admin"; //comp4621
-    private String validAdminPassword = "1"; //network
+    private String validAdminUser = "admin";
+    private String validAdminPassword = "1";
 
     private boolean quitCommandLoop = false;
     private List<String> debugMessages = new ArrayList<>(); // tamam dastoorati ke server anjam dade
@@ -333,26 +328,33 @@ public class Worker extends Thread {
      */
 
     private void handlePass(String password) {
+
         // User has entered a valid username and password is correct
         // handeled Null Value For Pass
+
         if (currentUserStatus == userStatus.ENTEREDUSERNAME && validPassword.equals(password)) {
             currentUserStatus = userStatus.LOGGEDIN;
             sendMsgToClient("230-Welcome to HKUST");
             sendMsgToClient(".");
+
             // sendMsgToClient("230 User logged in successfully");
         }
 
         else if (currentUserStatus == userStatus.ENTEREDADMINNAME && validAdminPassword.equals(password)) {
+
             currentUserStatus = userStatus.ADMINLOGGENIN;
             sendMsgToClient("230-Welcome to HKUST");
             sendMsgToClient(".");
+
             // sendMsgToClient("230 User logged in successfully");
         }
 
         // User is already logged in
         else if (currentUserStatus == userStatus.LOGGEDIN) {
+
             sendMsgToClient("530 User already logged in");
             sendMsgToClient(".");
+
         }
 
         // Admin is already logged in
@@ -374,6 +376,7 @@ public class Worker extends Thread {
      * @param args New directory to be created
      */
     private void handleCwd(String args) {
+
         String filename = currDirectory;
         if (args==null){
             sendMsgToClient("400 .Path Is Null");

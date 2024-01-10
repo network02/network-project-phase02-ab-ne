@@ -7,9 +7,6 @@ import java.net.Socket;
 /**
  * A very simple FTP Server class. On receiving a new connection it creates a
  * new worker thread.
- *
- * @author Moritz Stueckler
- *
  */
 
 public class Server {

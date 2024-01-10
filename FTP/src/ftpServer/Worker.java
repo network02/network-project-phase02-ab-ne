@@ -72,7 +72,7 @@ public class Worker extends Thread {
 
 
             // Greeting
-            sendMsgToClient("220 Welcome to the COMP4621 FTP-Serve \nUSER arg(ali) \nPASS arg (1) \nCWD arg (change path dir) \nCDUP (path to Root) \nPWD (current path dir) \n.");
+            sendMsgToClient("220 Welcome to the FTP-Server \nUSER arg(ali) \nPASS arg (1) \nCWD arg (change path dir) \nCDUP (path to Root) \nPWD (current path dir) \n.");
 
 
             // Get new command from client
@@ -201,6 +201,11 @@ public class Worker extends Thread {
             case "REPORT":
                 handleReport();
                 break;
+
+            case "DELE":
+                handleDELE(args);
+                break;
+
 
             default:
                 sendMsgToClient("501 Unknown command");
@@ -334,7 +339,7 @@ public class Worker extends Thread {
 
         if (currentUserStatus == userStatus.ENTEREDUSERNAME && validPassword.equals(password)) {
             currentUserStatus = userStatus.LOGGEDIN;
-            sendMsgToClient("230-Welcome to HKUST");
+            sendMsgToClient("230-Welcome to FTP server");
             sendMsgToClient(".");
 
             // sendMsgToClient("230 User logged in successfully");
@@ -343,7 +348,7 @@ public class Worker extends Thread {
         else if (currentUserStatus == userStatus.ENTEREDADMINNAME && validAdminPassword.equals(password)) {
 
             currentUserStatus = userStatus.ADMINLOGGENIN;
-            sendMsgToClient("230-Welcome to HKUST");
+            sendMsgToClient("230-Welcome to FTP server");
             sendMsgToClient(".");
 
             // sendMsgToClient("230 User logged in successfully");
@@ -618,6 +623,7 @@ public class Worker extends Thread {
         // For usage on separate hosts, we'd need to get the local IP address from
         // somewhere
         // Java sockets did not offer a good method for this
+
         String myIp = "127.0.0.1";
         String myIpSplit[] = myIp.split("\\.");
 
@@ -651,6 +657,7 @@ public class Worker extends Thread {
 
     private void handleSyst() {
         sendMsgToClient("215 COMP4621 FTP Server Homebrew");
+        sendMsgToClient(".");
     }
 
     /**
@@ -897,6 +904,31 @@ public class Worker extends Thread {
 
     }
 
+    /**
+     * Handler for DELE (remove directory) command. Removes a file.
+     *
+     */
+    private void handleDELE(String fileName) {
+        String filePath = currDirectory + fileSeparator + fileName;
+
+        // check if file exists and is not a directory
+
+        //sendMsgToClient("Are You Sure You want to Delete " + fileName );
+
+        File fileToDelete = new File(filePath);
+
+        if (fileToDelete.exists() && !fileToDelete.isDirectory()) {
+            fileToDelete.delete();
+
+            sendMsgToClient("250 File was successfully removed");
+            sendMsgToClient(".");
+        } else {
+            sendMsgToClient("550 Requested action not taken. File unavailable.");
+            sendMsgToClient(".");
+        }
+    }
+
+
 
 
 
@@ -1007,6 +1039,8 @@ public class Worker extends Thread {
         if (currentUserStatus==userStatus.ADMINLOGGENIN) return true;
         else return false;
     }
+
+
 
 
 }

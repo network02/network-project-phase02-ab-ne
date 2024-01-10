@@ -1,5 +1,4 @@
 import java.io.*;
-
 import java.net.ServerSocket;
 import java.net.Socket;
 
@@ -14,14 +13,12 @@ public class Main {
     private static ServerSocket welcomeSocket;
     private static Socket controlSocket;
     private static BufferedReader controlIn;
-
     private static PrintWriter controlOutWriter;
 
     private static boolean useDataSocket = false;
     private static Socket dataSocket;
 
     public static void main(String[] args) {
-
 
         try {
             // اتصال به سرور
@@ -39,9 +36,7 @@ public class Main {
 
 
 
-
             try {
-
                 // دریافت خوشامد و راهنما
                 String serverResponse;
                 while (true){
@@ -69,9 +64,7 @@ public class Main {
                     System.out.println("Closing connection to the FTP server.");
                     break;
                 }
-
                 // دریافت و چاپ پاسخ از سرور
-
 
                 if (command.startsWith("LIST")||command.startsWith("list")) {
                     dataSocket=ListenToServer();
@@ -81,7 +74,6 @@ public class Main {
                     printAllByWhile(controlIn);
 
                 }
-
                 else if (command.startsWith("RETR")||command.startsWith("retr")) {
                     dataSocket=ListenToServer();
 //                    dataSocket = new Socket(SERVER_ADDRESS, SERVER_PORT);
@@ -127,8 +119,6 @@ public class Main {
 
     }
 
-
-
     private static void printAllMsg(int n,BufferedReader controlIn) throws IOException {
 
         for (int i = 0; i < n; i++) {
@@ -151,7 +141,6 @@ public class Main {
 
             // چاپ پیام در کنسول
             System.out.println("Server: " + response);
-
 
         }
 
@@ -225,8 +214,8 @@ public class Main {
         // خواندن داده‌های فایل از سرور و ذخیره در فایل محلی
         try (FileOutputStream fileOut = new FileOutputStream(fileName)) {
             byte[] buffer = new byte[1024];
-            int bytesReadFromFile;
 
+            int bytesReadFromFile;
             while ((bytesReadFromFile = bin.read(buffer)) != -1) {
                 fileOut.write(buffer, 0, bytesReadFromFile);
             }

@@ -51,6 +51,7 @@ public class Server {
                 System.out.println("New connection received. Worker was created.");
                 noOfThreads++;
                 w.start();
+
             } catch (IOException e) {
                 System.out.println("Exception encountered on accept");
                 e.printStackTrace();

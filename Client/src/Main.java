@@ -1,5 +1,4 @@
 import java.io.*;
-
 import java.net.ServerSocket;
 import java.net.Socket;
 
@@ -14,14 +13,12 @@ public class Main {
     private static ServerSocket welcomeSocket;
     private static Socket controlSocket;
     private static BufferedReader controlIn;
-
     private static PrintWriter controlOutWriter;
 
     private static boolean useDataSocket = false;
     private static Socket dataSocket;
 
     public static void main(String[] args) {
-
 
         try {
             // اتصال به سرور
@@ -39,9 +36,7 @@ public class Main {
 
 
 
-
             try {
-
                 // دریافت خوشامد و راهنما
                 String serverResponse;
                 while (true){
@@ -69,9 +64,7 @@ public class Main {
                     System.out.println("Closing connection to the FTP server.");
                     break;
                 }
-
                 // دریافت و چاپ پاسخ از سرور
-
 
                 if (command.startsWith("LIST")||command.startsWith("list")) {
                     dataSocket=ListenToServer();
@@ -81,12 +74,21 @@ public class Main {
                     printAllByWhile(controlIn);
 
                 }
-
                 else if (command.startsWith("RETR")||command.startsWith("retr")) {
                     dataSocket=ListenToServer();
 //                    dataSocket = new Socket(SERVER_ADDRESS, SERVER_PORT);
                     downloadData(dataSocket);
                     printAllByWhile(controlIn);
+
+                }
+                else if (command.startsWith("STOR")||command.startsWith("stor")) {
+                    dataSocket=ListenToServer();
+                    uploadData(dataSocket,command);
+                    if (dataSocket != null) {
+                        dataSocket.close();
+                    }
+                    printAllByWhile(controlIn);
+
 
                 }
 
@@ -117,8 +119,6 @@ public class Main {
 
     }
 
-
-
     private static void printAllMsg(int n,BufferedReader controlIn) throws IOException {
 
         for (int i = 0; i < n; i++) {
@@ -141,7 +141,6 @@ public class Main {
 
             // چاپ پیام در کنسول
             System.out.println("Server: " + response);
-
 
         }
 
@@ -208,11 +207,6 @@ public class Main {
         InputStream in = dataSocket.getInputStream();
         BufferedInputStream bin = new BufferedInputStream(in);
 
-//        // خواندن پیام اولیه از سرور (به عنوان مثال، "150 Opening binary mode data connection...")
-//        byte[] initialMessageBuffer = new byte[1024];
-//        int bytesRead = bin.read(initialMessageBuffer);
-//        String initialMessage = new String(initialMessageBuffer, 0, bytesRead);
-//        System.out.println(initialMessage);
 
         // نام فایل مورد نظر
         String fileName = "receivedFile.txt";
@@ -220,8 +214,8 @@ public class Main {
         // خواندن داده‌های فایل از سرور و ذخیره در فایل محلی
         try (FileOutputStream fileOut = new FileOutputStream(fileName)) {
             byte[] buffer = new byte[1024];
-            int bytesReadFromFile;
 
+            int bytesReadFromFile;
             while ((bytesReadFromFile = bin.read(buffer)) != -1) {
                 fileOut.write(buffer, 0, bytesReadFromFile);
             }
@@ -230,7 +224,66 @@ public class Main {
             e.printStackTrace();
         }
     }
+    public static void uploadData(Socket dataSocket,String CommandIn) throws IOException {
 
+        String currDirectory;
+        String fileSeparator = "/";
+        currDirectory = System.getProperty("user.dir");
+        //System.out.println("----------current location " + currDirectory);
+
+        File f = new File(currDirectory + fileSeparator + getArgByCommand(CommandIn));
+
+        if (!f.exists()) {
+            System.out.println("550 File does not exist");
+        } else {
+
+            // ASCII mode
+
+            System.out.println("150 Opening ASCII mode data connection for requested file " + f.getName());
+
+                BufferedReader rin = null;
+                PrintWriter rout = null;
+
+                try {
+                    rin = new BufferedReader(new FileReader(f));
+                    rout = new PrintWriter(dataSocket.getOutputStream(), true);
+
+                } catch (IOException e) {
+                    System.out.println("Could not create file streams");
+                }
+
+                String s;
+
+                try {
+                    while ((s = rin.readLine()) != null) {
+                        rout.println(s);
+                    }
+                } catch (IOException e) {
+                    System.out.println("Could not read from or write to file streams");
+                    e.printStackTrace();
+                }
+
+                try {
+                    rout.close();
+                    rin.close();
+                } catch (IOException e) {
+                    System.out.println("Could not close file streams");
+                    e.printStackTrace();
+                }
+            System.out.println("226 File transfer successful. Closing data connection.");
+            System.out.println(".");
+
+
+        }
+
+    }
+    public static String getArgByCommand(String InputCommand){
+        // split command and arguments
+        int index = InputCommand.indexOf(' ');
+        String command = ((index == -1) ? InputCommand.toUpperCase() : (InputCommand.substring(0, index)).toUpperCase());
+        String args = ((index == -1) ? null : InputCommand.substring(index + 1));
+        return args;
+    }
 
 }
 

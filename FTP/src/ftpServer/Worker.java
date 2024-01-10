@@ -10,11 +10,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
-/**
- * Class for a FTP server worker thread.
- *
- * @author Moritz Stueckler (SID 20414726)
- */
 
 public class Worker extends Thread {
     /**
@@ -40,8 +35,8 @@ public class Worker extends Thread {
     private String validUser = "ali"; //comp4621
     private String validPassword = "1"; //network
 
-    private String validAdminUser = "admin"; //comp4621
-    private String validAdminPassword = "1"; //network
+    private String validAdminUser = "admin";
+    private String validAdminPassword = "1";
 
     private boolean quitCommandLoop = false;
     private List<String> debugMessages = new ArrayList<>(); // tamam dastoorati ke server anjam dade
@@ -77,7 +72,7 @@ public class Worker extends Thread {
 
 
             // Greeting
-            sendMsgToClient("220 Welcome to the COMP4621 FTP-Serve \nUSER arg(ali) \nPASS arg (1) \nCWD arg (change path dir) \nCDUP (path to Root) \nPWD (current path dir) \n.");
+            sendMsgToClient("220 Welcome to the FTP-Server \nUSER arg(ali) \nPASS arg (1) \nCWD arg (change path dir) \nCDUP (path to Root) \nPWD (current path dir) \n.");
 
 
             // Get new command from client
@@ -116,7 +111,7 @@ public class Worker extends Thread {
      *
      * @param c the raw input from the socket consisting of command and arguments
      */
-    private void executeCommand(String c) {
+    private void executeCommand(String c) throws IOException {
 
         // split command and arguments
         int index = c.indexOf(' ');
@@ -206,6 +201,11 @@ public class Worker extends Thread {
             case "REPORT":
                 handleReport();
                 break;
+
+            case "DELE":
+                handleDELE(args);
+                break;
+
 
             default:
                 sendMsgToClient("501 Unknown command");
@@ -333,26 +333,33 @@ public class Worker extends Thread {
      */
 
     private void handlePass(String password) {
+
         // User has entered a valid username and password is correct
         // handeled Null Value For Pass
+
         if (currentUserStatus == userStatus.ENTEREDUSERNAME && validPassword.equals(password)) {
             currentUserStatus = userStatus.LOGGEDIN;
-            sendMsgToClient("230-Welcome to HKUST");
+            sendMsgToClient("230-Welcome to FTP server");
             sendMsgToClient(".");
+
             // sendMsgToClient("230 User logged in successfully");
         }
 
         else if (currentUserStatus == userStatus.ENTEREDADMINNAME && validAdminPassword.equals(password)) {
+
             currentUserStatus = userStatus.ADMINLOGGENIN;
-            sendMsgToClient("230-Welcome to HKUST");
+            sendMsgToClient("230-Welcome to FTP server");
             sendMsgToClient(".");
+
             // sendMsgToClient("230 User logged in successfully");
         }
 
         // User is already logged in
         else if (currentUserStatus == userStatus.LOGGEDIN) {
+
             sendMsgToClient("530 User already logged in");
             sendMsgToClient(".");
+
         }
 
         // Admin is already logged in
@@ -374,6 +381,7 @@ public class Worker extends Thread {
      * @param args New directory to be created
      */
     private void handleCwd(String args) {
+
         String filename = currDirectory;
         if (args==null){
             sendMsgToClient("400 .Path Is Null");
@@ -615,6 +623,7 @@ public class Worker extends Thread {
         // For usage on separate hosts, we'd need to get the local IP address from
         // somewhere
         // Java sockets did not offer a good method for this
+
         String myIp = "127.0.0.1";
         String myIpSplit[] = myIp.split("\\.");
 
@@ -648,6 +657,7 @@ public class Worker extends Thread {
 
     private void handleSyst() {
         sendMsgToClient("215 COMP4621 FTP Server Homebrew");
+        sendMsgToClient(".");
     }
 
     /**
@@ -859,101 +869,68 @@ public class Worker extends Thread {
      *
      * @param file The file that the user wants to store on the server
      */
-    private void handleStor(String file) {
-        if (file == null) {
-            sendMsgToClient("501 No filename given");
-        } else {
-            File f = new File(currDirectory + fileSeparator + file);
+    private void handleStor(String file) throws IOException {
+        System.out.println("bbb");
 
-            if (f.exists()) {
-                sendMsgToClient("550 File already exists");
-            } else {
+        openDataConnectionActive("localhost", 20);
 
-                // Binary mode
-                if (transferMode == transferType.BINARY) {
-                    BufferedOutputStream fout = null;
-                    BufferedInputStream fin = null;
+        System.out.println("aa");
 
-                    sendMsgToClient("150 Opening binary mode data connection for requested file " + f.getName());
+        InputStream in = dataConnection.getInputStream();
+        BufferedInputStream bin = new BufferedInputStream(in);
 
-                    try {
-                        // create streams
-                        fout = new BufferedOutputStream(new FileOutputStream(f));
-                        fin = new BufferedInputStream(dataConnection.getInputStream());
-                    } catch (Exception e) {
-                        debugOutput("Could not create file streams");
-                    }
 
-                    debugOutput("Start receiving file " + f.getName());
+        // نام فایل مورد نظر
+        String fileName = file;
 
-                    // write file with buffer
-                    byte[] buf = new byte[1024];
-                    int l = 0;
-                    try {
-                        while ((l = fin.read(buf, 0, 1024)) != -1) {
-                            fout.write(buf, 0, l);
-                        }
-                    } catch (IOException e) {
-                        debugOutput("Could not read from or write to file streams");
-                        e.printStackTrace();
-                    }
+        // خواندن داده‌های فایل از سرور و ذخیره در فایل محلی
+        try (FileOutputStream fileOut = new FileOutputStream(fileName)) {
+            byte[] buffer = new byte[1024];
+            int bytesReadFromFile;
 
-                    // close streams
-                    try {
-                        fin.close();
-                        fout.close();
-                    } catch (IOException e) {
-                        debugOutput("Could not close file streams");
-                        e.printStackTrace();
-                    }
-
-                    debugOutput("Completed receiving file " + f.getName());
-
-                    sendMsgToClient("226 File transfer successful. Closing data connection.");
-
-                }
-
-                // ASCII mode
-                else {
-                    sendMsgToClient("150 Opening ASCII mode data connection for requested file " + f.getName());
-
-                    BufferedReader rin = null;
-                    PrintWriter rout = null;
-
-                    try {
-                        rin = new BufferedReader(new InputStreamReader(dataConnection.getInputStream()));
-                        rout = new PrintWriter(new FileOutputStream(f), true);
-
-                    } catch (IOException e) {
-                        debugOutput("Could not create file streams");
-                    }
-
-                    String s;
-
-                    try {
-                        while ((s = rin.readLine()) != null) {
-                            rout.println(s);
-                        }
-                    } catch (IOException e) {
-                        debugOutput("Could not read from or write to file streams");
-                        e.printStackTrace();
-                    }
-
-                    try {
-                        rout.close();
-                        rin.close();
-                    } catch (IOException e) {
-                        debugOutput("Could not close file streams");
-                        e.printStackTrace();
-                    }
-                    sendMsgToClient("226 File transfer successful. Closing data connection.");
-                }
-
+            while ((bytesReadFromFile = bin.read(buffer)) != -1) {
+                fileOut.write(buffer, 0, bytesReadFromFile);
             }
-            closeDataConnection();
+            sendMsgToClient("File received successfully.");
+            sendMsgToClient(".");
+        } catch (IOException e) {
+            e.printStackTrace();
         }
 
+        if (dataConnection != null) {
+            dataConnection.close();
+        }
+
+
     }
+
+    /**
+     * Handler for DELE (remove directory) command. Removes a file.
+     *
+     */
+    private void handleDELE(String fileName) {
+        String filePath = currDirectory + fileSeparator + fileName;
+
+        // check if file exists and is not a directory
+
+        //sendMsgToClient("Are You Sure You want to Delete " + fileName );
+
+        File fileToDelete = new File(filePath);
+
+        if (fileToDelete.exists() && !fileToDelete.isDirectory()) {
+            fileToDelete.delete();
+
+            sendMsgToClient("250 File was successfully removed");
+            sendMsgToClient(".");
+        } else {
+            sendMsgToClient("550 Requested action not taken. File unavailable.");
+            sendMsgToClient(".");
+        }
+    }
+
+
+
+
 
     /**
      * Debug output to the console. Also includes the Thread ID for better
@@ -1062,6 +1039,8 @@ public class Worker extends Thread {
         if (currentUserStatus==userStatus.ADMINLOGGENIN) return true;
         else return false;
     }
+
+
 
 
 }

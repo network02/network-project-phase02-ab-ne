@@ -7,9 +7,6 @@ import java.net.Socket;
 /**
  * A very simple FTP Server class. On receiving a new connection it creates a
  * new worker thread.
- *
- * @author Moritz Stueckler
- *
  */
 
 public class Server {
@@ -54,6 +51,7 @@ public class Server {
                 System.out.println("New connection received. Worker was created.");
                 noOfThreads++;
                 w.start();
+
             } catch (IOException e) {
                 System.out.println("Exception encountered on accept");
                 e.printStackTrace();
